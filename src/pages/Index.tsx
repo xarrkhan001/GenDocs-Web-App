@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import Dashboard from '@/components/Dashboard';
 
-const Index = () => {
+const Index: React.FC = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
 
