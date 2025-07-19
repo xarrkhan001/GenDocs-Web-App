@@ -8,6 +8,8 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import InvoiceGenerator from "./pages/InvoiceGenerator";
+import ResumeBuilder from "./pages/ResumeBuilder";
 
 const queryClient = new QueryClient();
 
@@ -22,6 +24,8 @@ const App: React.FC = () => {
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
+              <Route path="/invoice" element={<InvoiceGenerator />} />
+              <Route path="/resume" element={<ResumeBuilder />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
