@@ -127,3 +127,7 @@ CREATE TRIGGER update_resumes_updated_at
 BEFORE UPDATE ON public.resumes
 FOR EACH ROW
 EXECUTE FUNCTION public.update_updated_at_column();
+
+ALTER TABLE public.resumes
+ADD COLUMN IF NOT EXISTS certifications JSONB NOT NULL DEFAULT '[]'::jsonb,
+ADD COLUMN IF NOT EXISTS languages JSONB NOT NULL DEFAULT '[]'::jsonb;

@@ -20,7 +20,7 @@ export const cleanupAuthState = () => {
   });
 };
 
-export const signUp = async (email: string, password: string, fullName?: string) => {
+export const signUp = async (email: string, password: string, fullName?: string, username?: string) => {
   cleanupAuthState();
   try {
     await supabase.auth.signOut({ scope: 'global' });
@@ -29,18 +29,22 @@ export const signUp = async (email: string, password: string, fullName?: string)
   }
 
   const redirectUrl = `${window.location.origin}/`;
-  
+  // Create user in Supabase Auth
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       emailRedirectTo: redirectUrl,
       data: {
-        full_name: fullName
+        full_name: fullName,
+        username: username
       }
     }
   });
-  
+  // Also insert into users table for username lookup
+  if (!error && username) {
+    await supabase.from('users').insert({ email, username, full_name: fullName });
+  }
   return { data, error };
 };
 
@@ -69,3 +73,5 @@ export const signOut = async () => {
   }
   window.location.href = '/auth';
 };
+
+export { supabase };

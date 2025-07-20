@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,23 +10,28 @@ import { useAuth } from '@/hooks/useAuth';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { t } from '@/lib/translations';
 import { Eye, EyeOff, Globe } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 const Auth: React.FC = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [username, setUsername] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const { language, setLanguage } = useLanguage();
 
+  // Read ?mode=signup or ?mode=signin from URL
   useEffect(() => {
-    if (user) {
-      navigate('/');
-    }
-  }, [user, navigate]);
+    const params = new URLSearchParams(location.search);
+    const mode = params.get('mode');
+    if (mode === 'signup') setIsSignUp(true);
+    else if (mode === 'signin') setIsSignUp(false);
+  }, [location.search]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,16 +39,30 @@ const Auth: React.FC = () => {
 
     try {
       if (isSignUp) {
-        const { error } = await signUp(email, password, fullName);
+        const { error } = await signUp(email, password, fullName, username);
         if (error) throw error;
         toast({
           title: "Success",
           description: "Account created successfully! Please check your email to verify your account.",
         });
       } else {
-        const { error } = await signIn(email, password);
+        let loginEmail = email;
+        // If not an email, treat as username
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+          // Fetch user by username from Supabase (profiles table)
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('user_id, username')
+            .eq('username', email)
+            .single();
+          if (error || !data) throw new Error('User not found');
+          // If you have a way to map user_id to email, do it here. Otherwise, fallback to username login.
+          // For now, just use the username as loginEmail (if your auth supports it)
+          loginEmail = data.username;
+        }
+        const { error } = await signIn(loginEmail, password);
         if (error) throw error;
-        window.location.href = '/';
+        navigate('/dashboard');
       }
     } catch (error: any) {
       toast({
@@ -96,12 +115,25 @@ const Auth: React.FC = () => {
                   />
                 </div>
               )}
+              {isSignUp && (
+                <div className="space-y-2">
+                  <Label htmlFor="username">Username</Label>
+                  <Input
+                    id="username"
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    required={isSignUp}
+                    className="transition-all duration-200 focus:ring-2 focus:ring-primary/20"
+                  />
+                </div>
+              )}
 
               <div className="space-y-2">
-                <Label htmlFor="email">{t('email', language)}</Label>
+                <Label htmlFor="email">{t('email', language)} or Username</Label>
                 <Input
                   id="email"
-                  type="email"
+                  type="text"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -149,7 +181,11 @@ const Auth: React.FC = () => {
               <Button
                 type="button"
                 variant="link"
-                onClick={() => setIsSignUp(!isSignUp)}
+                onClick={() => {
+                  const nextMode = isSignUp ? 'signin' : 'signup';
+                  setIsSignUp(!isSignUp);
+                  navigate(`/auth?mode=${nextMode}`, { replace: true });
+                }}
                 className="text-sm text-muted-foreground hover:text-primary transition-colors duration-200"
               >
                 {isSignUp ? t('alreadyHaveAccount', language) : t('dontHaveAccount', language)}

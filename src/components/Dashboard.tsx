@@ -15,8 +15,11 @@ import {
   LogOut,
   Receipt,
   Briefcase,
-  TrendingUp
+  TrendingUp,
+  Edit,
+  Trash2
 } from 'lucide-react';
+import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 
 interface DashboardStats {
   totalInvoices: number;
@@ -77,36 +80,11 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
-      {/* Header */}
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-r from-primary to-primary/80 rounded-lg">
-              <Briefcase className="w-6 h-6 text-primary-foreground" />
-            </div>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-              Business Tools
-            </h1>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={toggleLanguage}>
-              <Globe className="w-4 h-4 mr-2" />
-              {language === 'english' ? 'اردو' : 'English'}
-            </Button>
-            <Button variant="outline" size="sm" onClick={signOut}>
-              <LogOut className="w-4 h-4 mr-2" />
-              {t('signOut', language)}
-            </Button>
-          </div>
-        </div>
-      </header>
-
       <div className="container mx-auto px-4 py-8">
         {/* Welcome Section */}
         <div className="mb-8">
-          <h2 className="text-3xl font-bold mb-2">
-            {t('welcomeBack', language)}, {user?.user_metadata?.full_name || user?.email}!
+          <h2 className="text-lg md:text-3xl font-bold mb-2">
+            {t('welcomeBack', language)}, {user?.user_metadata?.full_name || 'User'}!
           </h2>
           <p className="text-muted-foreground">
             Manage your invoices and resumes with our professional tools
@@ -218,16 +196,38 @@ const Dashboard: React.FC = () => {
                   {stats.recentInvoices.map((invoice) => (
                     <div 
                       key={invoice.id}
-                      className="flex items-center justify-between p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors cursor-pointer"
-                      onClick={() => navigate(`/invoice/${invoice.id}`)}
+                      className="flex items-center justify-between p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors"
                     >
-                      <div>
+                      <div className="flex-1 cursor-pointer" onClick={() => navigate(`/invoice/edit/${invoice.id}`)}>
                         <p className="font-medium">{invoice.client_name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          #{invoice.invoice_number}
-                        </p>
+                        <p className="text-sm text-muted-foreground">#{invoice.invoice_number}</p>
                       </div>
-                      <p className="text-sm font-medium">${invoice.total_amount}</p>
+                      <p className="text-sm font-medium mr-4">${invoice.total_amount}</p>
+                      <Button size="icon" variant="ghost" onClick={() => navigate(`/invoice/edit/${invoice.id}`)} title={t('edit', language)}>
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button size="icon" variant="ghost" title={t('delete', language)}>
+                            <Trash2 className="w-4 h-4 text-destructive" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>{t('delete', language)}?</AlertDialogTitle>
+                          </AlertDialogHeader>
+                          <p>Are you sure you want to delete this invoice?</p>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={async () => {
+                              setLoading(true);
+                              await supabase.from('invoices').delete().eq('id', invoice.id);
+                              await loadDashboardData();
+                              setLoading(false);
+                            }}>Delete</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   ))}
                   <Button variant="outline" className="w-full" onClick={() => navigate('/invoices')}>
@@ -255,16 +255,38 @@ const Dashboard: React.FC = () => {
                   {stats.recentResumes.map((resume) => (
                     <div 
                       key={resume.id}
-                      className="flex items-center justify-between p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors cursor-pointer"
-                      onClick={() => navigate(`/resume/${resume.id}`)}
+                      className="flex items-center justify-between p-3 bg-muted/50 rounded-lg hover:bg-muted transition-colors"
                     >
-                      <div>
+                      <div className="flex-1 cursor-pointer" onClick={() => navigate(`/resume/edit/${resume.id}`)}>
                         <p className="font-medium">{resume.title}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {resume.language === 'urdu' ? 'اردو' : 'English'}
-                        </p>
+                        <p className="text-sm text-muted-foreground">{resume.language === 'urdu' ? 'اردو' : 'English'}</p>
                       </div>
-                      <p className="text-sm font-medium capitalize">{resume.template_id}</p>
+                      <p className="text-sm font-medium mr-4 capitalize">{resume.template_id}</p>
+                      <Button size="icon" variant="ghost" onClick={() => navigate(`/resume/edit/${resume.id}`)} title={t('edit', language)}>
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button size="icon" variant="ghost" title={t('delete', language)}>
+                            <Trash2 className="w-4 h-4 text-destructive" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>{t('delete', language)}?</AlertDialogTitle>
+                          </AlertDialogHeader>
+                          <p>Are you sure you want to delete this resume?</p>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={async () => {
+                              setLoading(true);
+                              await supabase.from('resumes').delete().eq('id', resume.id);
+                              await loadDashboardData();
+                              setLoading(false);
+                            }}>Delete</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   ))}
                   <Button variant="outline" className="w-full" onClick={() => navigate('/resumes')}>
