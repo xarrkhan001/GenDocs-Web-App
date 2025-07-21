@@ -122,19 +122,19 @@
 .resume-preview h1 {
   font-size: 2.1rem;
   font-weight: 800;
-  color: #60a5fa;
+  color: #000000;
   margin-bottom: 0.15em;
 }
 .resume-preview h2 {
   font-size: 1.1rem;
   font-weight: 600;
-  color: #93c5fd;
+  color: #000000;
   margin-bottom: 0.15em;
 }
 .resume-preview h3 {
   font-size: 1rem;
   font-weight: 600;
-  color: #60a5fa;
+  color: #000000;
   margin-bottom: 0.15em;
 }
 .resume-preview section {
@@ -161,29 +161,18 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-size: 1em;
-  color: #60a5fa;
+  color: #000000;
 }
 /* Classic template heading colors */
-.classic-resume-preview h1 {
+.resume-classic-container h1,
+.resume-classic-container h2,
+.resume-classic-container h3,
+.resume-classic-container .section-title {
   color: #f59e42;
 }
-.classic-resume-preview h2 {
-  color: #fbbf24;
-}
-.classic-resume-preview h3 {
-  color: #f59e42;
-}
-.classic-resume-preview .section-title {
-  color: #f59e42;
-}
+
 @media print {
-  .classic-resume-preview h1, .classic-resume-preview h2, .classic-resume-preview h3 {
-    color: #f59e42 !important;
-  }
-  .classic-resume-preview h2 {
-    color: #fbbf24 !important;
-  }
-  .classic-resume-preview .section-title {
+  .classic-resume-container h1, .classic-resume-container h2, .classic-resume-container h3, .classic-resume-container .section-title {
     color: #f59e42 !important;
   }
 } 
