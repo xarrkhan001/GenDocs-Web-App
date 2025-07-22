@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -40,6 +40,8 @@ const InvoiceGenerator: React.FC<{ editMode?: boolean }> = ({ editMode }) => {
   ]);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Remove the useEffect that removes/adds the 'dark' class
 
   React.useEffect(() => {
     if (editMode && id && user) {
@@ -299,7 +301,7 @@ const InvoiceGenerator: React.FC<{ editMode?: boolean }> = ({ editMode }) => {
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   Invoice Items
-                  <Button onClick={addItem} size="sm">
+                  <Button onClick={addItem} size="sm" className="dark:bg-blue-600 dark:text-white dark:hover:bg-blue-700">
                     <Plus className="w-4 h-4 mr-2" />
                     Add Item
                   </Button>
@@ -382,7 +384,7 @@ const InvoiceGenerator: React.FC<{ editMode?: boolean }> = ({ editMode }) => {
                 <CardTitle>Preview</CardTitle>
               </CardHeader>
               <CardContent>
-                <div ref={invoiceRef} className="bg-white w-full p-3 md:p-8 text-black min-h-[600px]">
+                <div ref={invoiceRef} className="bg-gray-50 w-full max-w-full p-3 md:p-8 text-black min-h-[600px] mx-auto" style={{ width: 794, maxWidth: '100%' }}>
                   <div className="text-center mb-8">
                     <h1 className="text-3xl font-bold text-gray-800 md:text-3xl text-xl">INVOICE</h1>
                     <p className="text-gray-600 text-xs md:text-base">Professional Invoice</p>

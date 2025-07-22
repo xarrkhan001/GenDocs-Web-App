@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Plus, Download, Save, Globe } from 'lucide-react';
+import { ArrowLeft, Plus, Download, Save, Globe, User, Mail, Phone, MapPin } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -17,7 +17,9 @@ import '../resume-print.css';
 import Cropper from 'react-easy-crop';
 import Modal from '@mui/material/Modal';
 import Slider from '@mui/material/Slider';
-import { getCroppedImg } from '@/lib/utils'; // We'll add this helper for cropping
+import { getCroppedImg } from '@/lib/utils';
+import { useTheme } from '@/contexts/ThemeContext';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 interface Experience {
   id: string;
@@ -43,67 +45,67 @@ const ResumeBuilder: React.FC<{ editMode?: boolean }> = ({ editMode }) => {
   const resumeRef = useRef<HTMLDivElement>(null);
   const { id } = useParams();
   const isMobile = useIsMobile();
+  const { theme } = useTheme();
+
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [theme]);
 
   const [visiblePages, setVisiblePages] = useState(1);
   const [language, setLanguage] = useState<'english' | 'urdu'>('english');
   const [template, setTemplate] = useState<'modern' | 'classic' | 'minimal'>('modern');
-  
-  // Load last selected template from localStorage on mount
-  React.useEffect(() => {
+
+  useEffect(() => {
     const savedTemplate = localStorage.getItem("lastResumeTemplate");
     if (savedTemplate === "modern" || savedTemplate === "classic" || savedTemplate === "minimal") {
       setTemplate(savedTemplate);
     }
   }, []);
 
-  // Save template to localStorage whenever it changes
-  React.useEffect(() => {
+  useEffect(() => {
     localStorage.setItem("lastResumeTemplate", template);
   }, [template]);
 
   const [personalInfo, setPersonalInfo] = useState({
-    fullName: '',
-    email: '',
-    phone: '',
-    address: '',
-    title: '',
-    summary: '',
+    fullName: 'Your Name',
+    email: 'your@email.com',
+    phone: '+92 300 0000000',
+    address: 'Your City, Country',
+    title: 'Job Title',
+    summary: 'Write a short professional summary about yourself. Example: Passionate developer with 3+ years of experience in web and mobile app development. Skilled in React, Node.js, and UI/UX design.',
     profileImageUrl: ''
   });
 
   const [experiences, setExperiences] = useState<Experience[]>([
-    { id: '1', company: '', position: '', startDate: '', endDate: '', description: '' }
+    { id: '1', company: 'Company Name', position: 'Job Position', startDate: '2022-01-01', endDate: '2023-12-31', description: 'Describe your responsibilities and achievements. Example: Built and maintained web applications, collaborated with cross-functional teams, improved performance by 30%.' },
+    { id: '2', company: 'NextGen Solutions', position: 'Backend Developer', startDate: '2020-06-01', endDate: '2021-12-31', description: 'Developed REST APIs, optimized database queries, and ensured application security and scalability.' },
+    { id: '3', company: 'Creative Studio', position: 'UI/UX Designer', startDate: '2019-01-01', endDate: '2020-05-31', description: 'Designed user interfaces, created wireframes, and improved user experience for mobile and web apps.' }
   ]);
 
   const [educations, setEducations] = useState<Education[]>([
-    { id: '1', institution: '', degree: '', startDate: '', endDate: '' }
+    { id: '1', institution: 'Your University', degree: 'Your Degree', startDate: '2018-09-01', endDate: '2022-06-30' },
+    { id: '2', institution: 'College of Science', degree: 'Intermediate', startDate: '2016-09-01', endDate: '2018-06-30' }
   ]);
 
-  const [skills, setSkills] = useState<string[]>(['']);
-  const [certifications, setCertifications] = useState<string[]>(['']);
-  const [languages, setLanguages] = useState<string[]>(['']);
-
-  // Add state for profile image
+  const [skills, setSkills] = useState<string[]>(['React', 'TypeScript', 'Teamwork', 'Problem Solving', 'Communication', 'Node.js', 'Figma', 'Project Management', 'Python', 'SQL']);
+  const [certifications, setCertifications] = useState<string[]>(['AWS Certified Developer', 'Google UX Design Certificate', 'Scrum Master', 'Certified React Professional']);
+  const [languages, setLanguages] = useState<string[]>(['English', 'Urdu', 'Spanish', 'French', 'Your Language']);
   const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
   const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
-
-  // Add state for cropping
   const [showCropper, setShowCropper] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
-
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [sectionHeights, setSectionHeights] = useState<number[]>([]);
+  const sectionRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  // 1. Add state/refs for classic and minimal pagination
-  const [classicSectionHeights, setClassicSectionHeights] = useState<number[]>([]);
-  const classicSectionRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const [minimalSectionHeights, setMinimalSectionHeights] = useState<number[]>([]);
-  const minimalSectionRefs = useRef<(HTMLDivElement | null)[]>([]);
-
-  // Helper to upload image to Supabase Storage
   const uploadProfileImage = async (file: File) => {
     if (!user) return null;
     const fileExt = file.name.split('.').pop()?.toLowerCase() || 'jpg';
@@ -111,7 +113,7 @@ const ResumeBuilder: React.FC<{ editMode?: boolean }> = ({ editMode }) => {
     const fileName = `${cleanUserId}_${Date.now()}.${fileExt}`;
     const { data, error } = await supabase.storage.from('profile-images').upload(fileName, file, {
       cacheControl: '3600',
-      upsert: false // try without upsert first
+      upsert: false
     });
     if (error) {
       toast({ title: 'Error', description: error.message || 'Image upload failed', variant: 'destructive' });
@@ -120,9 +122,6 @@ const ResumeBuilder: React.FC<{ editMode?: boolean }> = ({ editMode }) => {
     const { data: publicUrlData } = supabase.storage.from('profile-images').getPublicUrl(fileName);
     return publicUrlData?.publicUrl || null;
   };
-
-  // Helper to get cropped image as blob
-  // (We'll add getCroppedImg to src/lib/utils.ts)
 
   const onCropComplete = (croppedArea: any, croppedAreaPixels: any) => {
     setCroppedAreaPixels(croppedAreaPixels);
@@ -141,9 +140,7 @@ const ResumeBuilder: React.FC<{ editMode?: boolean }> = ({ editMode }) => {
     if (!selectedImage || !croppedAreaPixels) return;
     const croppedBlob = await getCroppedImg(selectedImage, croppedAreaPixels);
     if (croppedBlob) {
-      // Show preview
       setProfileImageUrl(URL.createObjectURL(croppedBlob));
-      // Upload to Supabase
       const file = new File([croppedBlob], 'profile.jpg', { type: 'image/jpeg' });
       const url = await uploadProfileImage(file);
       if (url) {
@@ -155,7 +152,7 @@ const ResumeBuilder: React.FC<{ editMode?: boolean }> = ({ editMode }) => {
     setSelectedImage(null);
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (editMode && id && user) {
       setLoading(true);
       supabase
@@ -288,9 +285,9 @@ const ResumeBuilder: React.FC<{ editMode?: boolean }> = ({ editMode }) => {
           .single());
       } else {
         ({ data, error } = await supabase
-        .from('resumes')
-        .insert(resumeData)
-        .select()
+          .from('resumes')
+          .insert(resumeData)
+          .select()
           .single());
       }
       if (error) throw error;
@@ -312,75 +309,99 @@ const ResumeBuilder: React.FC<{ editMode?: boolean }> = ({ editMode }) => {
   };
 
   const downloadPDF = async () => {
-    // 5. Update downloadPDF to handle all templates
     let selector = '.resume-modern-container';
     if (template === 'classic') selector = '.resume-classic-container';
     if (template === 'minimal') selector = '.resume-minimal-container';
     const pageNodes = document.querySelectorAll(selector);
     if (!pageNodes.length) return;
 
-    const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: false });
-
+    let pdf = null;
     for (let i = 0; i < pageNodes.length; i++) {
       const node = pageNodes[i];
-      // Use a higher scale for HD quality
+      const rect = node.getBoundingClientRect();
+      const widthPx = Math.round(rect.width);
+      const heightPx = Math.round(rect.height);
+      const widthMm = widthPx / 3.779528;
+      const heightMm = heightPx / 3.779528;
       const canvas = await html2canvas(node as HTMLElement, {
-        scale: 3,
+        scale: 2,
         useCORS: true,
         allowTaint: true,
-        backgroundColor: '#ffffff',
+        backgroundColor: template === 'modern' ? '#1e293b' : '#ffffff',
+        width: widthPx,
+        height: heightPx,
       });
       const imgData = canvas.toDataURL('image/png', 1.0);
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-      if (i > 0) pdf.addPage();
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight, undefined, 'NONE');
+      if (i === 0) {
+        pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: [widthMm, heightMm], compress: false });
+      } else {
+        pdf.addPage([widthMm, heightMm], 'p');
+      }
+      pdf.addImage(imgData, 'PNG', 0, 0, widthMm, heightMm);
     }
-
-    pdf.save(`resume-${personalInfo.fullName || 'draft'}.pdf`);
-    toast({
-      title: 'PDF Downloaded',
-      description: 'Resume has been downloaded as PDF.',
-    });
+    if (pdf) {
+      pdf.save(`resume-${personalInfo.fullName || 'draft'}.pdf`);
+      toast({
+        title: 'PDF Downloaded',
+        description: 'Resume has been downloaded as PDF.',
+      });
+    }
   };
 
   const isUrdu = language === 'urdu';
-
-  // This is an approximate height in pixels for a standard A4 page.
-  // It's used for the live preview inside the app to decide where page breaks should occur.
-  // The final downloaded PDF will be a true A4 size, regardless of this value.
-  const PAGE_HEIGHT = 1050; // px, A4 size for better page break
-  const [sectionHeights, setSectionHeights] = useState<number[]>([]);
-  const sectionRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const PAGE_HEIGHT = 1050;
 
   useEffect(() => {
     setSectionHeights(sectionRefs.current.map(ref => ref?.offsetHeight || 0));
   }, [personalInfo, experiences, certifications, isUrdu]);
 
-  // 2. useEffect for classic/minimal heights
-  useEffect(() => {
-    setClassicSectionHeights(classicSectionRefs.current.map(ref => ref?.offsetHeight || 0));
-  }, [personalInfo, experiences, certifications, educations, skills, languages, isUrdu, template === 'classic']);
-  useEffect(() => {
-    setMinimalSectionHeights(minimalSectionRefs.current.map(ref => ref?.offsetHeight || 0));
-  }, [personalInfo, experiences, certifications, educations, skills, languages, isUrdu, template === 'minimal']);
+  function countWordsFromNode(node) {
+    if (!node) return 0;
+    if (typeof node === 'string') {
+      return node.trim().split(/\s+/).filter(Boolean).length;
+    }
+    if (Array.isArray(node)) {
+      return node.reduce((sum, child) => sum + countWordsFromNode(child), 0);
+    }
+    if (typeof node === 'object' && node.props) {
+      let words = 0;
+      if (node.props.children) words += countWordsFromNode(node.props.children);
+      ['label', 'title', 'alt', 'placeholder'].forEach(key => {
+        if (typeof node.props[key] === 'string') {
+          words += node.props[key].trim().split(/\s+/).filter(Boolean).length;
+        }
+      });
+      return words;
+    }
+    return 0;
+  }
 
-  function paginateSections(sections: React.ReactNode[], heights: number[]) {
-    let pages: React.ReactNode[][] = [];
-    let currentPage: React.ReactNode[] = [];
-    let currentHeight = 0;
+  function paginateSectionsByWords(sections, maxWordsPerPage = 110) {
+    let pages = [];
+    let currentPage = [];
+    let currentWords = 0;
     for (let i = 0; i < sections.length; i++) {
-      if (currentHeight + heights[i] > PAGE_HEIGHT && currentPage.length) {
+      const section = sections[i];
+      const sectionWords = countWordsFromNode(section);
+      if (currentWords + sectionWords > maxWordsPerPage && currentPage.length) {
         pages.push(currentPage);
         currentPage = [];
-        currentHeight = 0;
+        currentWords = 0;
       }
-      currentPage.push(sections[i]);
-      currentHeight += heights[i];
+      currentPage.push(section);
+      currentWords += sectionWords;
     }
     if (currentPage.length) pages.push(currentPage);
     return pages;
   }
+
+  useEffect(() => {
+    const wasDark = document.documentElement.classList.contains('dark');
+    document.documentElement.classList.remove('dark');
+    return () => {
+      if (wasDark) document.documentElement.classList.add('dark');
+    };
+  }, []);
 
   if (loading) {
     return (
@@ -396,7 +417,6 @@ const ResumeBuilder: React.FC<{ editMode?: boolean }> = ({ editMode }) => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4">
       <div className="container w-full max-w-full px-1 sm:px-4 mx-auto">
-        {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <Button variant="outline" onClick={() => navigate('/')}>
@@ -439,7 +459,6 @@ const ResumeBuilder: React.FC<{ editMode?: boolean }> = ({ editMode }) => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-6">
-          {/* Input Form */}
           <div className="space-y-6">
             <Card>
               <CardHeader>
@@ -536,7 +555,7 @@ const ResumeBuilder: React.FC<{ editMode?: boolean }> = ({ editMode }) => {
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   {isUrdu ? 'تجربہ' : 'Work Experience'}
-                  <Button onClick={addExperience} size="sm">
+                  <Button onClick={addExperience} size="sm" className="bg-blue-600 text-white hover:bg-blue-700">
                     <Plus className="w-4 h-4 mr-2" />
                     {isUrdu ? 'شامل کریں' : 'Add'}
                   </Button>
@@ -610,7 +629,7 @@ const ResumeBuilder: React.FC<{ editMode?: boolean }> = ({ editMode }) => {
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   {isUrdu ? 'تعلیم' : 'Education'}
-                  <Button onClick={addEducation} size="sm">
+                  <Button onClick={addEducation} size="sm" className="bg-blue-600 text-white hover:bg-blue-700">
                     <Plus className="w-4 h-4 mr-2" />
                     {isUrdu ? 'شامل کریں' : 'Add'}
                   </Button>
@@ -674,7 +693,7 @@ const ResumeBuilder: React.FC<{ editMode?: boolean }> = ({ editMode }) => {
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   {isUrdu ? 'مہارات' : 'Skills'}
-                  <Button onClick={addSkill} size="sm">
+                  <Button onClick={addSkill} size="sm" className="bg-blue-600 text-white hover:bg-blue-700">
                     <Plus className="w-4 h-4 mr-2" />
                     {isUrdu ? 'شامل کریں' : 'Add'}
                   </Button>
@@ -702,7 +721,7 @@ const ResumeBuilder: React.FC<{ editMode?: boolean }> = ({ editMode }) => {
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   {isUrdu ? 'سرٹیفیکیشنز' : 'Certifications'}
-                  <Button onClick={addCertification} size="sm">
+                  <Button onClick={addCertification} size="sm" className="bg-blue-600 text-white hover:bg-blue-700">
                     <Plus className="w-4 h-4 mr-2" />
                     {isUrdu ? 'شامل کریں' : 'Add'}
                   </Button>
@@ -730,7 +749,7 @@ const ResumeBuilder: React.FC<{ editMode?: boolean }> = ({ editMode }) => {
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   {isUrdu ? 'زبانیں' : 'Languages'}
-                  <Button onClick={addLanguage} size="sm">
+                  <Button onClick={addLanguage} size="sm" className="bg-blue-600 text-white hover:bg-blue-700">
                     <Plus className="w-4 h-4 mr-2" />
                     {isUrdu ? 'شامل کریں' : 'Add'}
                   </Button>
@@ -763,28 +782,21 @@ const ResumeBuilder: React.FC<{ editMode?: boolean }> = ({ editMode }) => {
                   <input type="file" accept="image/*" onChange={handleProfileImageChange} />
                   {profileImageUrl && (
                     <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <img
-                        src={profileImageUrl}
-                        alt="Profile Preview"
-                        style={{
-                          width: 80,
-                          height: 80,
-                          borderRadius: '50%',
-                          objectFit: 'cover',
-                          border: '3px solid #fbbf24',
-                          boxShadow: '0 2px 8px #0003',
-                        }}
-                      />
+                      <Avatar style={{ width: isMobile ? '60px' : '115px', height: isMobile ? '60px' : '115px', border: '4px solid #3b82f6', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)', background: '#fff', flexShrink: 0, marginTop: 0, marginLeft: 0, marginRight: 0 }}>
+                        <AvatarImage src={profileImageUrl || undefined} alt="Profile" />
+                        <AvatarFallback>
+                          <User className="w-10 h-10 text-blue-500" />
+                        </AvatarFallback>
+                      </Avatar>
                       <Button onClick={() => {
                         setSelectedImage(profileImageUrl);
                         setShowCropper(true);
-                      }} type="button">Edit/Crop</Button>
+                      }} type="button" className="bg-blue-600 text-white hover:bg-blue-700">Edit/Crop</Button>
                     </div>
                   )}
-                  {/* Cropper Modal */}
                   <Modal open={showCropper} onClose={() => setShowCropper(false)}>
-                    <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: '#fff', padding: 24, borderRadius: 12, boxShadow: '0 2px 16px #0003', width: 350 }}>
-                      <div style={{ position: 'relative', width: 300, height: 300, background: '#333' }}>
+                    <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: '#fff', padding: 24, borderRadius: 12, boxShadow: '0 2px 16px rgba(0, 0, 0, 0.3)', width: isMobile ? '300px' : '350px' }}>
+                      <div style={{ position: 'relative', width: isMobile ? '250px' : '300px', height: isMobile ? '250px' : '300px', background: '#333' }}>
                         <Cropper
                           image={selectedImage || ''}
                           crop={crop}
@@ -808,7 +820,7 @@ const ResumeBuilder: React.FC<{ editMode?: boolean }> = ({ editMode }) => {
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
                         <Button variant="outline" onClick={() => setShowCropper(false)}>Cancel</Button>
-                        <Button onClick={handleCropSave}>Save</Button>
+                        <Button onClick={handleCropSave} className="bg-blue-600 text-white hover:bg-blue-700">Save</Button>
                       </div>
                     </div>
                   </Modal>
@@ -817,311 +829,209 @@ const ResumeBuilder: React.FC<{ editMode?: boolean }> = ({ editMode }) => {
             )}
           </div>
 
-          {/* Resume Preview */}
           <div>
             <Card>
               <CardHeader>
                 <CardTitle>{isUrdu ? 'پیش منظر' : 'Preview'}</CardTitle>
               </CardHeader>
               <CardContent>
-                <div style={isMobile ? { height: `${PAGE_HEIGHT * 0.45 + 40}px`, overflow: 'hidden' } : {}}>
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', minHeight: '100px' }}>
                   <div
                     ref={resumeRef}
-                    className="resume-preview text-black overflow-auto max-h-[297mm] sm:max-h-[297mm]"
+                    className="resume-preview text-black overflow-auto"
                     style={{
                       direction: isUrdu ? 'rtl' : 'ltr',
-                      fontSize: '11px',
+                      fontSize: isMobile ? '10px' : '11px',
                       lineHeight: '1.3',
                       pageBreakAfter: 'avoid',
                       pageBreakInside: 'avoid',
                       wordWrap: 'break-word',
                       whiteSpace: 'pre-wrap',
-                      ...(isMobile && {
-                        transform: 'scale(0.45)',
-                        transformOrigin: 'top left',
-                        width: 'calc(100% / 0.45)',
-                        height: 'calc(100% / 0.45)',
-                        maxHeight: 'none',
-                      }),
+                      width: isMobile ? '320px' : '520px',
+                      minHeight: isMobile ? '400px' : '540px',
+                      maxWidth: '100%',
+                      margin: '0 auto',
+                      boxShadow: isMobile ? 'none' : '0 4px 20px rgba(0, 0, 0, 0.2)',
+                      borderRadius: isMobile ? '0' : '12px',
+                      border: isMobile ? 'none' : '1px solid #3b82f6',
+                      background: isMobile ? 'transparent' : template === 'modern' ? 'linear-gradient(to bottom, #1e293b, #334155)' : '#fff',
+                      overflow: 'hidden',
                     }}
                   >
                     {template === 'modern' && (() => {
-                      // Build mainSections array with refs for measurement
                       let sectionIdx = 0;
-                      const mainSections = [];
-                      if (personalInfo.summary) mainSections.push(
-                        <div key="profile-summary" ref={el => sectionRefs.current[sectionIdx++] = el}>
-                          <section>
-                            <h3 className="text-sm font-bold uppercase mb-1" style={{ color: '#2563eb', letterSpacing: '0.08em', textShadow: '0 1px 4px rgba(17, 24, 39, 0.08)', fontWeight: 800, fontSize: '15px' }}>{isUrdu ? 'پیشہ ورانہ خلاصہ' : 'Profile'}</h3>
-                            <p className="text-xs" style={{ color: '#334155' }}>{personalInfo.summary}</p>
-                          </section>
-                        </div>
-                      );
-                      if (experiences.some(exp => exp.company)) mainSections.push(
-                        <div key="work-experience" ref={el => sectionRefs.current[sectionIdx++] = el}>
-                          <section>
-                            <h3 className="text-sm font-bold uppercase mb-1" style={{ color: '#2563eb', letterSpacing: '0.08em', textShadow: '0 1px 4px rgba(17, 24, 39, 0.08)', fontWeight: 800, fontSize: '15px' }}>{isUrdu ? 'تجربہ' : 'Work Experience'}</h3>
-                            <div className="space-y-2">
-                              {experiences.filter(exp => exp.company).map((exp, idx) => (
-                                <div key={exp.id} className="mb-1">
-                                  <div className="flex justify-between items-center">
-                                    <span className="font-semibold text-xs">{exp.position}</span>
-                                    <span className="text-xs text-gray-400">{exp.startDate} - {exp.endDate || (isUrdu ? 'موجودہ' : 'Present')}</span>
+                      const sections = [];
+                      sections.push(
+                        <div key="header-summary" ref={el => sectionRefs.current[sectionIdx++] = el}>
+                          <div className="mb-6 flex items-start gap-4 flex-col md:flex-row">
+                            {profileImageUrl && (
+                              <Avatar style={{ width: isMobile ? '80px' : '120px', height: isMobile ? '80px' : '120px', border: '4px solid #3b82f6', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)', background: '#fff', borderRadius: '50%', flexShrink: 0 }}>
+                                <AvatarImage src={profileImageUrl || undefined} alt="Profile" />
+                                <AvatarFallback>
+                                  <User className="w-10 h-10 text-blue-500" />
+                                </AvatarFallback>
+                              </Avatar>
+                            )}
+                            <div className="text-center md:text-left">
+                              <h1 className="text-2xl font-extrabold tracking-tight" style={{ color: '#ffffff', fontFamily: "'Inter', sans-serif" }}>{personalInfo.fullName || (isUrdu ? 'آپ کا نام' : 'Your Name')}</h1>
+                              {personalInfo.title && <p className="text-base font-semibold mt-1" style={{ color: '#93c5fd', fontFamily: "'Inter', sans-serif" }}>{personalInfo.title}</p>}
+                              <div className="text-sm mt-3 space-y-1" style={{ color: '#cbd5e1', fontFamily: "'Inter', sans-serif" }}>
+                                {personalInfo.email && (
+                                  <div className="flex items-center gap-2 justify-center md:justify-start">
+                                    <Mail className="w-4 h-4 text-blue-500" />
+                                    <span>{personalInfo.email}</span>
                                   </div>
-                                  <div className="text-xs text-gray-600 font-medium">{exp.company}</div>
-                                  {exp.description && <p className="text-xs mt-0.5">{exp.description}</p>}
-                                </div>
-                              ))}
+                                )}
+                                {personalInfo.phone && (
+                                  <div className="flex items-center gap-2 justify-center md:justify-start">
+                                    <Phone className="w-4 h-4 text-blue-500" />
+                                    <span>{personalInfo.phone}</span>
+                                  </div>
+                                )}
+                                {personalInfo.address && (
+                                  <div className="flex items-center gap-2 justify-center md:justify-start">
+                                    <MapPin className="w-4 h-4 text-blue-500" />
+                                    <span>{personalInfo.address}</span>
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                          </section>
+                          </div>
+                          {personalInfo.summary && (
+                            <div className="mb-6 bg-white/5 p-4 rounded-lg" style={{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)' }}>
+                              <h2 className="text-lg font-extrabold uppercase tracking-wider pb-1 mb-3" style={{ color: '#e2e8f0', borderBottom: '2px solid', borderImage: 'linear-gradient(to right, #3b82f6, #93c5fd) 1', fontFamily: "'Inter', sans-serif" }}>{isUrdu ? 'خلاصہ' : 'Summary'}</h2>
+                              <p className="text-sm leading-relaxed" style={{ color: '#cbd5e1', fontFamily: "'Inter', sans-serif" }}>{personalInfo.summary}</p>
+                            </div>
+                          )}
                         </div>
                       );
-                      if (certifications.some(cert => cert.trim())) mainSections.push(
-                        <div key="certifications" ref={el => sectionRefs.current[sectionIdx++] = el}>
-                          <section>
-                            <h3 className="text-sm font-bold uppercase mb-1" style={{ color: '#2563eb', letterSpacing: '0.08em', textShadow: '0 1px 4px rgba(17, 24, 39, 0.08)', fontWeight: 800, fontSize: '15px' }}>{isUrdu ? 'سرٹیفیکیشنز' : 'Certifications'}</h3>
-                            <ul className="space-y-1 text-xs">
-                              {certifications.filter(cert => cert.trim()).map((cert, idx) => (
-                                <li key={idx}>{cert}</li>
-                              ))}
-                            </ul>
-                          </section>
-                        </div>
-                      );
-                      const pages = paginateSections(mainSections, sectionHeights);
-                      if (pages.length === 0) {
-                        pages.push([]);
+                      if (experiences.some(e => e.company)) {
+                        sections.push(
+                          <div key="experience" ref={el => sectionRefs.current[sectionIdx++] = el} className="mb-6 bg-white/5 p-4 rounded-lg" style={{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)' }}>
+                            <h2 className="text-lg font-extrabold uppercase tracking-wider pb-1 mb-3" style={{ color: '#e2e8f0', borderBottom: '2px solid', borderImage: 'linear-gradient(to right, #3b82f6, #93c5fd) 1', fontFamily: "'Inter', sans-serif" }}>{isUrdu ? 'تجربہ' : 'Work Experience'}</h2>
+                            {experiences.filter(e => e.company).map(exp => (
+                              <div key={exp.id} className="mb-4">
+                                <div className="flex flex-col md:flex-row justify-between items-baseline">
+                                  <h3 className="text-md font-semibold" style={{ color: '#ffffff', fontFamily: "'Inter', sans-serif" }}>{exp.position}</h3>
+                                  <span className="text-xs font-mono" style={{ color: '#93c5fd' }}>{exp.startDate} - {exp.endDate || (isUrdu ? 'موجودہ' : 'Present')}</span>
+                                </div>
+                                <p className="text-sm font-medium" style={{ color: '#e2e8f0', fontFamily: "'Inter', sans-serif" }}>{exp.company}</p>
+                                <p className="text-sm mt-1 leading-relaxed" style={{ color: '#cbd5e1', fontFamily: "'Inter', sans-serif" }}>{exp.description}</p>
+                              </div>
+                            ))}
+                          </div>
+                        );
                       }
+                      if (educations.some(e => e.institution)) {
+                        sections.push(
+                          <div key="education" ref={el => sectionRefs.current[sectionIdx++] = el} className="mb-6 bg-white/5 p-4 rounded-lg" style={{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)' }}>
+                            <h2 className="text-lg font-extrabold uppercase tracking-wider pb-1 mb-3" style={{ color: '#e2e8f0', borderBottom: '2px solid', borderImage: 'linear-gradient(to right, #3b82f6, #93c5fd) 1', fontFamily: "'Inter', sans-serif" }}>{isUrdu ? 'تعلیم' : 'Education'}</h2>
+                            {educations.filter(e => e.institution).map(edu => (
+                              <div key={edu.id} className="mb-3">
+                                <div className="flex flex-col md:flex-row justify-between items-baseline">
+                                  <h3 className="text-md font-semibold" style={{ color: '#ffffff', fontFamily: "'Inter', sans-serif" }}>{edu.degree}</h3>
+                                  <span className="text-xs font-mono" style={{ color: '#93c5fd' }}>{edu.startDate} - {edu.endDate}</span>
+                                </div>
+                                <p className="text-sm" style={{ color: '#e2e8f0', fontFamily: "'Inter', sans-serif" }}>{edu.institution}</p>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      }
+                      if (skills.some(s => s.trim())) {
+                        sections.push(
+                          <div key="skills" ref={el => sectionRefs.current[sectionIdx++] = el} className="mb-6 bg-white/5 p-4 rounded-lg" style={{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)' }}>
+                            <h2 className="text-lg font-extrabold uppercase tracking-wider pb-1 mb-3" style={{ color: '#e2e8f0', borderBottom: '2px solid', borderImage: 'linear-gradient(to right, #3b82f6, #93c5fd) 1', fontFamily: "'Inter', sans-serif" }}>{isUrdu ? 'مہارات' : 'Skills'}</h2>
+                            <ul className="list-disc list-inside text-sm space-y-1" style={{ color: '#cbd5e1', fontFamily: "'Inter', sans-serif" }}>
+                              {skills.filter(s => s.trim()).map((skill, i) => <li key={i}>{skill}</li>)}
+                            </ul>
+                          </div>
+                        );
+                      }
+                      if (certifications.some(c => c.trim())) {
+                        sections.push(
+                          <div key="certifications" ref={el => sectionRefs.current[sectionIdx++] = el} className="mb-6 bg-white/5 p-4 rounded-lg" style={{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)' }}>
+                            <h2 className="text-lg font-extrabold uppercase tracking-wider pb-1 mb-3" style={{ color: '#e2e8f0', borderBottom: '2px solid', borderImage: 'linear-gradient(to right, #3b82f6, #93c5fd) 1', fontFamily: "'Inter', sans-serif" }}>{isUrdu ? 'سرٹیفیکیشنز' : 'Certifications'}</h2>
+                            <ul className="list-disc list-inside text-sm space-y-1" style={{ color: '#cbd5e1', fontFamily: "'Inter', sans-serif" }}>
+                              {certifications.filter(c => c.trim()).map((cert, i) => <li key={i}>{cert}</li>)}
+                            </ul>
+                          </div>
+                        );
+                      }
+                      if (languages.some(l => l.trim())) {
+                        sections.push(
+                          <div key="languages" ref={el => sectionRefs.current[sectionIdx++] = el} className="mb-6 bg-white/5 p-4 rounded-lg" style={{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)' }}>
+                            <h2 className="text-lg font-extrabold uppercase tracking-wider pb-1 mb-3" style={{ color: '#e2e8f0', borderBottom: '2px solid', borderImage: 'linear-gradient(to right, #3b82f6, #93c5fd) 1', fontFamily: "'Inter', sans-serif" }}>{isUrdu ? 'زبانیں' : 'Languages'}</h2>
+                            <ul className="list-disc list-inside text-sm space-y-1" style={{ color: '#cbd5e1', fontFamily: "'Inter', sans-serif" }}>
+                              {languages.filter(l => l.trim()).map((lang, i) => <li key={i}>{lang}</li>)}
+                            </ul>
+                          </div>
+                        );
+                      }
+                      const pages = paginateSectionsByWords(sections, 110);
                       const totalPages = pages.length;
                       const pagesToShow = pages.slice(0, visiblePages);
-
                       return (
                         <>
                           {pagesToShow.map((pageSections, pageIdx) => (
-                        <div
-                          key={pageIdx}
-                          className="resume-modern-container"
-                          style={{
-                            fontSize: isMobile ? '10px' : '13px',
-                            lineHeight: '1.25',
-                            maxWidth: '800px',
-                            width: '100%',
-                            margin: `0 auto`,
-                            marginBottom: 0,
-                            color: '#1e293b',
-                            padding: '0',
-                            paddingBottom: 0,
-                            position: 'relative',
-                            overflow: 'visible',
-                            border: '1px solid #e5e7eb',
-                            pageBreakAfter: 'always',
-                            borderTop: pageIdx > 0 ? 'none' : undefined,
-                          }}
-                        >
-                          {/* Profile Header (spans both columns) - only on first page */}
-                          {pageIdx === 0 && (
                             <div
-                              className="resume-modern-header"
+                              key={pageIdx}
+                              className="resume-modern-container"
                               style={{
-                                display: 'flex',
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                                gap: isMobile ? '12px' : '24px',
-                                padding: isMobile ? '16px' : '32px 32px 16px 32px',
-                                borderBottom: '1px solid #e5e7eb',
-                                background: '#172554', // deep navy blue (blue-950)
-                                flexWrap: 'wrap',
-                              }}
-                            >
-                              {profileImageUrl && (
-                                <img
-                                  src={profileImageUrl}
-                                  alt="Profile"
-                                  className="w-[155px] h-[155px] rounded-full object-cover border-4"
-                                  style={{
-                                    borderColor: '#60a5fa',
-                                    boxShadow: '0 2px 8px #0003',
-                                    background: '#fff',
-                                    flexShrink: 0,
-                                    marginTop: 0,
-                                    width: isMobile ? '80px' : '115px',
-                                    height: isMobile ? '80px' : '115px',
-                                    marginLeft: 0,
-                                    marginRight: 0,
-                                  }}
-                                />
-                              )}
-                              <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-                                <h1
-                                  className="text-xl font-bold tracking-wide mb-0.5 uppercase"
-                                  style={{
-                                    color: '#fff', // white for name
-                                    letterSpacing: '0.08em',
-                                    textShadow: '0 1px 4px rgba(17, 24, 39, 0.08)',
-                                    fontWeight: 800,
-                                    fontSize: isMobile ? '16px' : '20px',
-                                    marginBottom: 2,
-                                    wordBreak: 'break-word',
-                                    textAlign: 'left',
-                                  }}
-                                >
-                                  {personalInfo.fullName || (isUrdu ? 'آپ کا نام' : 'Your Name')}
-                                </h1>
-                                {personalInfo.title && (
-                                  <h2
-                                    className="text-sm font-medium tracking-wide mb-0.5 uppercase"
-                                    style={{
-                                      color: '#fff', // white for job title
-                                      letterSpacing: '0.08em',
-                                      textShadow: '0 1px 4px rgba(17, 24, 39, 0.08)',
-                                      fontWeight: 800,
-                                      fontSize: isMobile ? '11px' : '13px',
-                                      marginBottom: 2,
-                                      wordBreak: 'break-word',
-                                      textAlign: 'left',
-                                    }}
-                                  >
-                                    {personalInfo.title}
-                                  </h2>
-                                )}
-                                <div className="flex flex-wrap items-center gap-2 text-xs mt-1" style={{ color: '#e0e7ef', wordBreak: 'break-word', justifyContent: 'flex-start' }}>
-                                  {personalInfo.email && <span>{personalInfo.email}</span>}
-                                  {personalInfo.phone && <span>{personalInfo.phone}</span>}
-                                  {personalInfo.address && <span>{personalInfo.address}</span>}
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                          {/* Responsive Two-column layout */}
-                          <div
-                            className="resume-modern-body"
-                            style={{
-                              display: 'flex',
-                              flexDirection: 'row',
-                              alignItems: 'stretch',
-                              minHeight: 'auto',
-                              padding: '0',
-                              width: '100%',
-                              flexWrap: 'nowrap',
-                            }}
-                          >
-                            {/* Sidebar: On mobile, stack below header and above main content */}
-                            {pageIdx === 0 && (
-                            <aside
-                              className="resume-modern-sidebar"
-                              style={{
-                                width: '33%',
-                                background: '#172554', // deep navy blue (blue-950)
-                                color: '#fff', // main text white
-                                borderRight: '1px solid #e5e7eb',
-                                padding: isMobile ? '16px 12px' : '24px 18px',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: isMobile ? '16px' : '24px',
-                                minWidth: isMobile ? '120px' : 0,
-                                boxSizing: 'border-box',
-                                flexShrink: 0,
-                              }}
-                            >
-                              {/* Education */}
-                              <section>
-                                <h3 className="text-xs font-bold uppercase mb-1" style={{ color: '#fff', letterSpacing: '0.08em', textShadow: '0 1px 4px rgba(17, 24, 39, 0.08)', fontWeight: 800, fontSize: isMobile ? '11px' : '13px' }}>{isUrdu ? 'تعلیم' : 'Education'}</h3>
-                                {educations.some(edu => edu.institution) && (
-                                  <ul className="space-y-1">
-                                    {educations.filter(edu => edu.institution).map((edu) => (
-                                      <li key={edu.id}>
-                                        <div className="font-semibold text-xs">{edu.degree}</div>
-                                        <div className="text-xs" style={{color:'#cbd5e1'}}>{edu.institution}</div>
-                                        <div className="text-xs" style={{color:'#94a3b8'}}>{edu.startDate} - {edu.endDate}</div>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                )}
-                              </section>
-                              {/* Skills/Expertise */}
-                              <section style={{ marginTop: '24px' }}>
-                                <h3 className="text-xs font-bold uppercase mb-1" style={{ color: '#fff', letterSpacing: '0.08em', textShadow: '0 1px 4px rgba(17, 24, 39, 0.08)', fontWeight: 800, fontSize: isMobile ? '11px' : '13px' }}>{isUrdu ? 'مہارتیں' : 'Expertise'}</h3>
-                                {skills.some(skill => skill.trim()) && (
-                                  <ul className="space-y-1 text-xs">
-                                    {skills.filter(skill => skill.trim()).map((skill, idx) => (
-                                      <li key={idx} className="flex items-start gap-1"><span className="text-lg" style={{lineHeight:'1',color:'#fff'}}>&bull;</span> <span>{skill}</span></li>
-                                    ))}
-                                  </ul>
-                                )}
-                              </section>
-                              {/* Languages */}
-                              <section style={{ marginTop: '24px' }}>
-                                <h3 className="text-xs font-bold uppercase mb-1" style={{ color: '#fff', letterSpacing: '0.08em', textShadow: '0 1px 4px rgba(17, 24, 39, 0.08)', fontWeight: 800, fontSize: isMobile ? '11px' : '13px' }}>{isUrdu ? 'زبانیں' : 'Languages'}</h3>
-                                {languages.some(lang => lang.trim()) && (
-                                  <ul className="space-y-1 text-xs">
-                                    {languages.filter(lang => lang.trim()).map((lang, idx) => (
-                                      <li key={idx} className="flex items-start gap-1"><span className="text-lg" style={{lineHeight:'1',color:'#fff'}}>&bull;</span> <span>{lang}</span></li>
-                                    ))}
-                                  </ul>
-                                )}
-                              </section>
-                            </aside>
-                            )}
-                            {/* Main Content */}
-                            <main
-                              className="resume-modern-main"
-                              style={{
-                                flex: 1,
-                                padding: isMobile ? '16px' : '32px 32px',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: isMobile ? '12px' : '18px',
-                                minWidth: 0,
-                                boxSizing: 'border-box',
+                                padding: isMobile ? '20px' : '48px',
+                                border: isMobile ? 'none' : '1px solid #3b82f6',
+                                marginBottom: 0,
+                                background: 'linear-gradient(to bottom, #1e293b, #334155)',
+                                pageBreakAfter: 'always',
+                                fontFamily: "'Inter', sans-serif",
+                                boxShadow: isMobile ? 'none' : '0 6px 24px rgba(0, 0, 0, 0.25)',
+                                borderRadius: isMobile ? '0' : '10px',
+                                maxWidth: isMobile ? '320px' : '800px',
+                                width: '100%',
+                                margin: '0 auto',
+                                color: '#cbd5e1',
                               }}
                             >
                               {pageSections}
-                            </main>
-                          </div>
-                        </div>
-                      ))}
-                      {totalPages > visiblePages && (
-                        <div className="text-center py-4">
-                          <Button onClick={() => setVisiblePages(p => p + 1)}>
-                            {isUrdu ? 'نیا صفحہ شامل کریں' : 'Add New Page'}
-                          </Button>
-                        </div>
-                      )}
-                      </>
+                            </div>
+                          ))}
+                          {totalPages > visiblePages && (
+                            <div className="text-center py-4">
+                              <Button onClick={() => setVisiblePages(p => p + 1)} className="bg-blue-600 text-white hover:bg-blue-700">
+                                {isUrdu ? 'نیا صفحہ شامل کریں' : 'Add New Page'}
+                              </Button>
+                            </div>
+                          )}
+                        </>
                       );
                     })()}
-                    
                     {template === 'classic' && (() => {
                       let sectionIdx = 0;
                       const sections = [];
-
-                      // Group header and summary together to prevent page break between them
                       sections.push(
-                        <div key="header-summary" ref={el => classicSectionRefs.current[sectionIdx++] = el}>
+                        <div key="header-summary" ref={el => sectionRefs.current[sectionIdx++] = el}>
                           <div className="mb-6">
                             <div className="text-center">
                               <h1 className="text-4xl font-bold text-orange-600 tracking-tight">{personalInfo.fullName}</h1>
                               {personalInfo.title && <p className="text-xl text-orange-600 mt-1 font-medium">{personalInfo.title}</p>}
-                          </div>
+                            </div>
                             <div className="text-center text-sm text-gray-500 mt-4 flex justify-center items-center flex-wrap gap-x-4 gap-y-1">
                               {personalInfo.email && <span>{personalInfo.email}</span>}
                               {personalInfo.phone && <span>{personalInfo.phone}</span>}
                               {personalInfo.address && <span>{personalInfo.address}</span>}
+                            </div>
                           </div>
-                        </div>
-                          
                           {personalInfo.summary && (
                             <div className="mb-5">
                               <h2 className="text-lg font-bold uppercase tracking-wider text-orange-600 border-b-2 border-orange-300 pb-1 mb-2">{isUrdu ? 'خلاصہ' : 'Summary'}</h2>
                               <p className="text-sm text-gray-700 leading-relaxed">{personalInfo.summary}</p>
                             </div>
                           )}
-                          </div>
-                        );
-
+                        </div>
+                      );
                       if (experiences.some(e => e.company)) {
                         sections.push(
-                          <div key="experience" ref={el => classicSectionRefs.current[sectionIdx++] = el} className="mb-5">
+                          <div key="experience" ref={el => sectionRefs.current[sectionIdx++] = el} className="mb-5">
                             <h2 className="text-lg font-bold uppercase tracking-wider text-orange-600 border-b-2 border-orange-300 pb-1 mb-2">{isUrdu ? 'تجربہ' : 'Work Experience'}</h2>
                             {experiences.filter(e => e.company).map(exp => (
                               <div key={exp.id} className="mb-3">
@@ -1136,16 +1046,15 @@ const ResumeBuilder: React.FC<{ editMode?: boolean }> = ({ editMode }) => {
                           </div>
                         );
                       }
-
                       if (educations.some(e => e.institution)) {
                         sections.push(
-                          <div key="education" ref={el => classicSectionRefs.current[sectionIdx++] = el} className="mb-5">
+                          <div key="education" ref={el => sectionRefs.current[sectionIdx++] = el} className="mb-5">
                             <h2 className="text-lg font-bold uppercase tracking-wider text-orange-600 border-b-2 border-orange-300 pb-1 mb-2">{isUrdu ? 'تعلیم' : 'Education'}</h2>
                             {educations.filter(e => e.institution).map(edu => (
                               <div key={edu.id} className="mb-2">
                                 <div className="flex justify-between items-baseline">
-                                   <h3 className="text-md font-semibold text-gray-800">{edu.degree}</h3>
-                                   <span className="text-xs text-gray-500 font-mono">{edu.startDate} - {edu.endDate}</span>
+                                  <h3 className="text-md font-semibold text-gray-800">{edu.degree}</h3>
+                                  <span className="text-xs text-gray-500 font-mono">{edu.startDate} - {edu.endDate}</span>
                                 </div>
                                 <p className="text-sm text-gray-600">{edu.institution}</p>
                               </div>
@@ -1153,101 +1062,91 @@ const ResumeBuilder: React.FC<{ editMode?: boolean }> = ({ editMode }) => {
                           </div>
                         );
                       }
-                      
                       const skillBasedSections = [];
                       if (skills.some(s => s.trim())) {
-                          skillBasedSections.push(
-                              <div key="skills" className="flex-1 min-w-[48%]">
-                                  <h2 className="text-lg font-bold uppercase tracking-wider text-orange-600 border-b-2 border-orange-300 pb-1 mb-2">{isUrdu ? 'مہارات' : 'Skills'}</h2>
-                                  <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
-                                      {skills.filter(s => s.trim()).map((skill, i) => <li key={i}>{skill}</li>)}
-                                  </ul>
-                              </div>
-                          );
+                        skillBasedSections.push(
+                          <div key="skills" className="flex-1 min-w-[48%]">
+                            <h2 className="text-lg font-bold uppercase tracking-wider text-orange-600 border-b-2 border-orange-300 pb-1 mb-2">{isUrdu ? 'مہارات' : 'Skills'}</h2>
+                            <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
+                              {skills.filter(s => s.trim()).map((skill, i) => <li key={i}>{skill}</li>)}
+                            </ul>
+                          </div>
+                        );
                       }
-
                       if (certifications.some(c => c.trim())) {
-                          skillBasedSections.push(
-                              <div key="certifications" className="flex-1 min-w-[48%]">
-                                  <h2 className="text-lg font-bold uppercase tracking-wider text-orange-600 border-b-2 border-orange-300 pb-1 mb-2">{isUrdu ? 'سرٹیفیکیشنز' : 'Certifications'}</h2>
-                                  <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
-                                      {certifications.filter(c => c.trim()).map((cert, i) => <li key={i}>{cert}</li>)}
-                                  </ul>
-                              </div>
-                          );
+                        skillBasedSections.push(
+                          <div key="certifications" className="flex-1 min-w-[48%]">
+                            <h2 className="text-lg font-bold uppercase tracking-wider text-orange-600 border-b-2 border-orange-300 pb-1 mb-2">{isUrdu ? 'سرٹیفیکیشنز' : 'Certifications'}</h2>
+                            <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
+                              {certifications.filter(c => c.trim()).map((cert, i) => <li key={i}>{cert}</li>)}
+                            </ul>
+                          </div>
+                        );
                       }
-                      
                       if (languages.some(l => l.trim())) {
-                          skillBasedSections.push(
-                              <div key="languages" className="flex-1 min-w-[48%]">
-                                  <h2 className="text-lg font-bold uppercase tracking-wider text-orange-600 border-b-2 border-orange-300 pb-1 mb-2">{isUrdu ? 'زبانیں' : 'Languages'}</h2>
-                                  <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
-                                      {languages.filter(l => l.trim()).map((lang, i) => <li key={i}>{lang}</li>)}
-                                  </ul>
-                              </div>
-                          );
+                        skillBasedSections.push(
+                          <div key="languages" className="flex-1 min-w-[48%]">
+                            <h2 className="text-lg font-bold uppercase tracking-wider text-orange-600 border-b-2 border-orange-300 pb-1 mb-2">{isUrdu ? 'زبانیں' : 'Languages'}</h2>
+                            <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
+                              {languages.filter(l => l.trim()).map((lang, i) => <li key={i}>{lang}</li>)}
+                            </ul>
+                          </div>
+                        );
                       }
-
-                      if(skillBasedSections.length > 0) {
+                      if (skillBasedSections.length > 0) {
                         sections.push(
-                          <div key="skill-based" ref={el => classicSectionRefs.current[sectionIdx++] = el} className="flex flex-wrap gap-x-8 gap-y-5">
+                          <div key="skill-based" ref={el => sectionRefs.current[sectionIdx++] = el} className="flex flex-wrap gap-x-8 gap-y-5">
                             {skillBasedSections}
                           </div>
                         );
                       }
-
-                      const pages = paginateSections(sections, classicSectionHeights);
-                      const totalPages = pages.length;
-                      const pagesToShow = pages.slice(0, visiblePages);
+                      const classicPages = paginateSectionsByWords(sections, 110);
+                      const totalPages = classicPages.length;
+                      const pagesToShow = classicPages.slice(0, visiblePages);
                       return (
                         <>
-                        {pagesToShow.map((pageSections, pageIdx) => (
-                        <div key={pageIdx} className="resume-classic-container" style={{ padding: '40px', border: '1px solid #e5e7eb', marginBottom: 0, background: 'white', pageBreakAfter: 'always', fontFamily: 'system-ui, sans-serif' }}>
-                          {pageSections}
-                        </div>
-                      ))}
-                      {totalPages > visiblePages && (
-                        <div className="text-center py-4">
-                          <Button onClick={() => setVisiblePages(p => p + 1)}>
-                            {isUrdu ? 'نیا صفحہ شامل کریں' : 'Add New Page'}
-                          </Button>
-                        </div>
-                      )}
-                      </>
+                          {pagesToShow.map((pageSections, pageIdx) => (
+                            <div key={pageIdx} className="resume-classic-container" style={{ padding: '40px', border: isMobile ? 'none' : '1px solid #e5e7eb', marginBottom: 0, background: 'white', pageBreakAfter: 'always', fontFamily: 'system-ui, sans-serif' }}>
+                              {pageSections}
+                            </div>
+                          ))}
+                          {totalPages > visiblePages && (
+                            <div className="text-center py-4">
+                              <Button onClick={() => setVisiblePages(p => p + 1)}>
+                                {isUrdu ? 'نیا صفحہ شامل کریں' : 'Add New Page'}
+                              </Button>
+                            </div>
+                          )}
+                        </>
                       );
                     })()}
-
                     {template === 'minimal' && (() => {
                       let sectionIdx = 0;
                       const sections = [];
-
-                      // Group header and summary together to prevent page break between them
                       sections.push(
-                        <div key="header-summary" ref={el => minimalSectionRefs.current[sectionIdx++] = el}>
+                        <div key="header-summary" ref={el => sectionRefs.current[sectionIdx++] = el}>
                           <div className="mb-6">
                             <div className="text-center">
                               <h1 className="text-4xl font-bold text-black tracking-tight">{personalInfo.fullName}</h1>
                               {personalInfo.title && <p className="text-xl text-black mt-1 font-medium">{personalInfo.title}</p>}
-                          </div>
+                            </div>
                             <div className="text-center text-sm text-gray-500 mt-4 flex justify-center items-center flex-wrap gap-x-4 gap-y-1">
                               {personalInfo.email && <span>{personalInfo.email}</span>}
                               {personalInfo.phone && <span>{personalInfo.phone}</span>}
                               {personalInfo.address && <span>{personalInfo.address}</span>}
-                        </div>
+                            </div>
                           </div>
-                          
                           {personalInfo.summary && (
                             <div className="mb-5">
                               <h2 className="text-lg font-bold uppercase tracking-wider text-black border-b-2 border-gray-300 pb-1 mb-2">{isUrdu ? 'خلاصہ' : 'Summary'}</h2>
                               <p className="text-sm text-gray-700 leading-relaxed">{personalInfo.summary}</p>
                             </div>
                           )}
-                          </div>
-                        );
-
+                        </div>
+                      );
                       if (experiences.some(e => e.company)) {
                         sections.push(
-                          <div key="experience" ref={el => minimalSectionRefs.current[sectionIdx++] = el} className="mb-5">
+                          <div key="experience" ref={el => sectionRefs.current[sectionIdx++] = el} className="mb-5">
                             <h2 className="text-lg font-bold uppercase tracking-wider text-black border-b-2 border-gray-300 pb-1 mb-2">{isUrdu ? 'تجربہ' : 'Work Experience'}</h2>
                             {experiences.filter(e => e.company).map(exp => (
                               <div key={exp.id} className="mb-3">
@@ -1262,16 +1161,15 @@ const ResumeBuilder: React.FC<{ editMode?: boolean }> = ({ editMode }) => {
                           </div>
                         );
                       }
-
                       if (educations.some(e => e.institution)) {
                         sections.push(
-                          <div key="education" ref={el => minimalSectionRefs.current[sectionIdx++] = el} className="mb-5">
+                          <div key="education" ref={el => sectionRefs.current[sectionIdx++] = el} className="mb-5">
                             <h2 className="text-lg font-bold uppercase tracking-wider text-black border-b-2 border-gray-300 pb-1 mb-2">{isUrdu ? 'تعلیم' : 'Education'}</h2>
                             {educations.filter(e => e.institution).map(edu => (
                               <div key={edu.id} className="mb-2">
                                 <div className="flex justify-between items-baseline">
-                                   <h3 className="text-md font-semibold text-gray-800">{edu.degree}</h3>
-                                   <span className="text-xs text-gray-500 font-mono">{edu.startDate} - {edu.endDate}</span>
+                                  <h3 className="text-md font-semibold text-gray-800">{edu.degree}</h3>
+                                  <span className="text-xs text-gray-500 font-mono">{edu.startDate} - {edu.endDate}</span>
                                 </div>
                                 <p className="text-sm text-gray-600">{edu.institution}</p>
                               </div>
@@ -1279,70 +1177,64 @@ const ResumeBuilder: React.FC<{ editMode?: boolean }> = ({ editMode }) => {
                           </div>
                         );
                       }
-                      
                       const skillBasedSections = [];
                       if (skills.some(s => s.trim())) {
-                          skillBasedSections.push(
-                              <div key="skills" className="flex-1 min-w-[48%]">
-                                  <h2 className="text-lg font-bold uppercase tracking-wider text-black border-b-2 border-gray-300 pb-1 mb-2">{isUrdu ? 'مہارات' : 'Skills'}</h2>
-                                  <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
-                                      {skills.filter(s => s.trim()).map((skill, i) => <li key={i}>{skill}</li>)}
-                                  </ul>
+                        skillBasedSections.push(
+                          <div key="skills" className="flex-1 min-w-[48%]">
+                            <h2 className="text-lg font-bold uppercase tracking-wider text-black border-b-2 border-gray-300 pb-1 mb-2">{isUrdu ? 'مہارات' : 'Skills'}</h2>
+                            <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
+                              {skills.filter(s => s.trim()).map((skill, i) => <li key={i}>{skill}</li>)}
+                            </ul>
                           </div>
                         );
                       }
-
                       if (certifications.some(c => c.trim())) {
-                          skillBasedSections.push(
-                              <div key="certifications" className="flex-1 min-w-[48%]">
-                                  <h2 className="text-lg font-bold uppercase tracking-wider text-black border-b-2 border-gray-300 pb-1 mb-2">{isUrdu ? 'سرٹیفیکیشنز' : 'Certifications'}</h2>
-                                  <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
-                                      {certifications.filter(c => c.trim()).map((cert, i) => <li key={i}>{cert}</li>)}
-                                  </ul>
+                        skillBasedSections.push(
+                          <div key="certifications" className="flex-1 min-w-[48%]">
+                            <h2 className="text-lg font-bold uppercase tracking-wider text-black border-b-2 border-gray-300 pb-1 mb-2">{isUrdu ? 'سرٹیفیکیشنز' : 'Certifications'}</h2>
+                            <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
+                              {certifications.filter(c => c.trim()).map((cert, i) => <li key={i}>{cert}</li>)}
+                            </ul>
                           </div>
                         );
                       }
-
                       if (languages.some(l => l.trim())) {
-                          skillBasedSections.push(
-                              <div key="languages" className="flex-1 min-w-[48%]">
-                                  <h2 className="text-lg font-bold uppercase tracking-wider text-black border-b-2 border-gray-300 pb-1 mb-2">{isUrdu ? 'زبانیں' : 'Languages'}</h2>
-                                  <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
-                                      {languages.filter(l => l.trim()).map((lang, i) => <li key={i}>{lang}</li>)}
-                                  </ul>
+                        skillBasedSections.push(
+                          <div key="languages" className="flex-1 min-w-[48%]">
+                            <h2 className="text-lg font-bold uppercase tracking-wider text-black border-b-2 border-gray-300 pb-1 mb-2">{isUrdu ? 'زبانیں' : 'Languages'}</h2>
+                            <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
+                              {languages.filter(l => l.trim()).map((lang, i) => <li key={i}>{lang}</li>)}
+                            </ul>
                           </div>
                         );
                       }
-
-                      if(skillBasedSections.length > 0) {
+                      if (skillBasedSections.length > 0) {
                         sections.push(
-                          <div key="skill-based" ref={el => minimalSectionRefs.current[sectionIdx++] = el} className="flex flex-wrap gap-x-8 gap-y-5">
+                          <div key="skill-based" ref={el => sectionRefs.current[sectionIdx++] = el} className="flex flex-wrap gap-x-8 gap-y-5">
                             {skillBasedSections}
                           </div>
                         );
                       }
-
-                      const pages = paginateSections(sections, minimalSectionHeights);
-                      const totalPages = pages.length;
-                      const pagesToShow = pages.slice(0, visiblePages);
+                      const minimalPages = paginateSectionsByWords(sections, 110);
+                      const totalPages = minimalPages.length;
+                      const pagesToShow = minimalPages.slice(0, visiblePages);
                       return (
                         <>
                           {pagesToShow.map((pageSections, pageIdx) => (
-                        <div key={pageIdx} className="resume-minimal-container" style={{ padding: '40px', border: '1px solid #e5e7eb', marginBottom: 0, background: 'white', pageBreakAfter: 'always', fontFamily: 'system-ui, sans-serif' }}>
-                          {pageSections}
-                        </div>
-                      ))}
-                      {totalPages > visiblePages && (
-                        <div className="text-center py-4">
-                          <Button onClick={() => setVisiblePages(p => p + 1)}>
-                            {isUrdu ? 'نیا صفحہ شامل کریں' : 'Add New Page'}
-                          </Button>
-                        </div>
-                      )}
-                      </>
+                            <div key={pageIdx} className="resume-minimal-container" style={{ padding: '40px', border: isMobile ? 'none' : '1px solid #e5e7eb', marginBottom: 0, background: 'white', pageBreakAfter: 'always', fontFamily: 'system-ui, sans-serif' }}>
+                              {pageSections}
+                            </div>
+                          ))}
+                          {totalPages > visiblePages && (
+                            <div className="text-center py-4">
+                              <Button onClick={() => setVisiblePages(p => p + 1)}>
+                                {isUrdu ? 'نیا صفحہ شامل کریں' : 'Add New Page'}
+                              </Button>
+                            </div>
+                          )}
+                        </>
                       );
                     })()}
-
                   </div>
                 </div>
               </CardContent>
@@ -1350,7 +1242,7 @@ const ResumeBuilder: React.FC<{ editMode?: boolean }> = ({ editMode }) => {
           </div>
         </div>
         <div className="flex justify-center gap-2 mt-8 mb-2 md:hidden">
-          <Button onClick={saveResume} disabled={saving} className="px-2 py-1 text-xs w-auto">
+          <Button onClick={saveResume} disabled={saving} className="bg-blue-600 text-white hover:bg-blue-700 px-2 py-1 text-xs w-auto">
             <Save className="w-3 h-3 mr-1" />
             {saving ? 'Saving...' : 'Save'}
           </Button>
